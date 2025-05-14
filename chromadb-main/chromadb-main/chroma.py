@@ -13,6 +13,12 @@ def add_ticker_to_chroma(ticker: str) -> None:
     year = 2025
     quarter = 4
 
+    potential_id = f"{ticker}_0"
+    
+    if potential_id in collection.get(ids=[potential_id])["ids"]:
+        print(f"{ticker} earnings call already exists in ChromaDB.")
+        return None
+
     while len(transcript_dict) == 0 and transcript_dict is not None:
 
         query_url = f'https://www.alphavantage.co/query?function=EARNINGS_CALL_TRANSCRIPT&symbol={ticker}&quarter={year}Q{quarter}&apikey=KCMNKODOBZ1L8YW7'
@@ -40,32 +46,26 @@ def add_ticker_to_chroma(ticker: str) -> None:
                 print(f"No transcript found for {ticker}. Probably API rate limit exceeded.")
                 return None
             
-    potential_id = f"{ticker}_0"
-    
-    if potential_id in collection.get(ids=[potential_id])["ids"]:
-        print(f"{ticker} earnings call already exists in ChromaDB.")
-    
-    else:
-        documents = []
-        metadatas = []
-        ids = []
+    documents = []
+    metadatas = []
+    ids = []
 
-        for i, entry in enumerate(transcript_dict):
-            speaker: str = entry["speaker"]
-            speaker_title: str = entry["title"]
-            content: str = entry["content"]
-            sentiment: str = entry["sentiment"]
+    for i, entry in enumerate(transcript_dict):
+        speaker: str = entry["speaker"]
+        speaker_title: str = entry["title"]
+        content: str = entry["content"]
+        sentiment: str = entry["sentiment"]
 
-            documents.append(content)
-            metadatas.append({"speaker": speaker, "title": speaker_title, "sentiment": sentiment})
-            ids.append(f"{ticker}_{i}")
+        documents.append(content)
+        metadatas.append({"speaker": speaker, "title": speaker_title, "sentiment": sentiment})
+        ids.append(f"{ticker}_{i}")
 
-        collection.add(
-            documents=documents,
-            metadatas=metadatas,
-            ids=ids
-        )
-        print(f"Added {len(documents)} entries to ChromaDB for {ticker} in quarter {year}Q{quarter}.")
+    collection.add(
+        documents=documents,
+        metadatas=metadatas,
+        ids=ids
+    )
+    print(f"Added {len(documents)} entries to ChromaDB for {ticker} in quarter {year}Q{quarter}.")
 
     return None
             
@@ -73,21 +73,38 @@ def add_ticker_to_chroma(ticker: str) -> None:
     
 
 if __name__ == "__main__":
-    client = chromadb.PersistentClient()
-    collection = client.get_or_create_collection("database")
-    print("Made db")
+    client = chromadb.PersistentClient(path="./chroma")
+    collection = client.get_collection("database")
 
-    tickers =  ["WBA", "F", "AMD", "RACE"]
+    for col in client.list_collections():
+        print(col)
 
-    for ticker in tickers:
-        add_ticker_to_chroma(ticker)
-        time.sleep(4)
+    tickers = ["IBM", "ORCL", "XOM", "JPM", "CSCO",
+               "GOOGL", "RACE", "WMT", "MSFT", "INTC",
+               "AVGO", "TSLA", "NVDA", "AMD", "META", "COST",
+               "PEP", "AMZN", "AAPL"]
+
+    # tickers = ["NFLX"]
+
+    # allIDS = collection.get()["ids"]
+
+    # ticker_ids = [id for id in allIDS if id.split("_")[0] in tickers]
+    # tickers = []
+    # for id in ticker_ids:
+    #     tickers.append(id.split("_")[0])
 
 
-    # query = "is tesla ramping up production?"
-    # results = collection.query(
-    #     query_texts=[query],
-    #     n_results=3
-    # )
-    # print("\nExample query results for 'financial performance of tesla' in all transcripts:")
-    # print(results["documents"])
+    # for i, ticker in enumerate(tickers):
+    #     try:
+    #         collec = client.get_or_create_collection(f"{ticker}")
+    #         print("")
+    #         collec.add(
+    #             documents=[collection.get(ids=[ticker_ids[i]])["documents"][0]],
+    #             metadatas=[collection.get(ids=[ticker_ids[i]])["metadatas"][0]],
+    #             ids=[ticker_ids[i]]
+    #         )
+    #         print(f"Added {ticker_ids[i]} to {ticker} collection. {i}")
+    #     except Exception as e:
+    #         print(f"Failed to add {ticker_ids[i]} to {ticker} collection. {e}")
+    #         continue
+
